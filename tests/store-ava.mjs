@@ -1,11 +1,17 @@
-import test from "ava";
+import process from 'node:process';
+import test, { registerCompletionHandler } from 'ava';
 import { connection, wait } from "./helpers/util.mjs";
 import { WebSocketServer, WebSocket } from "ws";
 import websocketStore from "svelte-websocket-store";
+import { unsubscribe } from 'node:diagnostics_channel';
 
 globalThis.WebSocket = WebSocket;
 
 let port = 5002;
+
+registerCompletionHandler(() => {
+  process.exit();
+});
 
 test.beforeEach(async t => {
   port++;
@@ -82,31 +88,24 @@ test("several subscriptions", async t => {
   t.true(closeCalled);
 });
 
-test.skip("failing subscription", async t => {
-  try {
-    const store = websocketStore("ws://localhost:9999", "INITIAL");
-    const unsubscribe = store.subscribe(value => {});
+test("failing subscription", async t => {
+  const store = await websocketStore("ws://localhost:9999", "INITIAL")
 
-    store.set("FROM_CLIENT_1");
-
-    await wait(100);
-
-    t.true(false);
-  } catch (e) {}
-
-  t.true(true);
+  console.log("store", store);
+  t.asserts(store.subscribe).is();
+  console.log("store", store.message);
 });
 
 test("should not open a new ws connection if already existing", async t => {
   let counter = 0;
   t.context.wss.on('connection', () => { counter += 1 })
-  
+
   const store = websocketStore(`ws://localhost:${t.context.port}`, "INITIAL");
 
-  const unsubscribe = store.subscribe(value => {});
+  const unsubscribe = store.subscribe(value => { });
   await wait(300);
-  const anotherUnsubscribe = store.subscribe(value => {});
-  
+  const anotherUnsubscribe = store.subscribe(value => { });
+
   await wait(50);
 
   unsubscribe();
