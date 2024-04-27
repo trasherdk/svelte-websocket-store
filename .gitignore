@@ -8,3 +8,4 @@ build
 .tmp
 bun.lockb
 dist
+package-lock.json
